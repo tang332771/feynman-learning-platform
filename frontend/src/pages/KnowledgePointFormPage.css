@@ -1,0 +1,49 @@
+.kp-import{
+	border: 1px dashed var(--border);
+	border-radius: var(--radius);
+	padding: 0.9rem;
+	background: rgba(255,255,255,0.6);
+}
+
+.kp-import-head{
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
+.kp-import-title{
+	font-weight: 800;
+	margin-bottom: 0.15rem;
+}
+
+.kp-import-row{
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	flex-wrap: wrap;
+}
+
+.kp-file-input{
+	padding: 0.55rem 0.7rem;
+}
+
+.kp-file-input::file-selector-button{
+	margin-right: 0.75rem;
+	border: 1px solid var(--border);
+	background: transparent;
+	color: var(--text);
+	padding: 0.5rem 0.75rem;
+	border-radius: 10px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.kp-file-input::file-selector-button:hover{
+	background: rgba(0,0,0,0.04);
+}
+
+.kp-import-error{
+	margin-top: 0.75rem;
+}

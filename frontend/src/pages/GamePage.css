@@ -1,0 +1,151 @@
+.game-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.game-header {
+  margin-bottom: 3rem;
+}
+
+.score-board {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--primary);
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+}
+
+.ai-avatar-pulse {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.riddle-card {
+  background: var(--bg-surface);
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+  position: relative;
+  border: 2px solid var(--border);
+}
+
+.riddle-content {
+  font-size: 1.5rem;
+  line-height: 1.6;
+  color: var(--text-main);
+  font-style: italic;
+}
+
+.quote-mark {
+  font-size: 3rem;
+  color: var(--primary);
+  opacity: 0.3;
+  vertical-align: middle;
+  margin: 0 0.5rem;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.game-option-btn {
+  padding: 1.5rem;
+  font-size: 1.1rem;
+  border: 2px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.game-option-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.game-option-btn.correct {
+  background-color: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
+
+.game-option-btn.wrong {
+  background-color: #f44336;
+  color: white;
+  border-color: #f44336;
+}
+
+.game-option-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.result-panel {
+  background: var(--bg-surface);
+  padding: 2rem;
+  border-radius: 16px;
+  border: 2px solid var(--border);
+  animation: slideUp 0.3s ease-out;
+}
+
+.result-header {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.result-header.success { color: #4caf50; }
+.result-header.failure { color: #f44336; }
+
+.result-explanation {
+  text-align: left;
+  background: var(--bg-bg);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.next-btn {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+}

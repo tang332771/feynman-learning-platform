@@ -1,0 +1,313 @@
+/* LoginPage.css */
+.login-page-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #000000; /* Start black */
+  transition: background-color 0.5s ease;
+}
+
+[data-theme="light"] .login-page-container {
+  background: #f0f9ff; /* Light sky blue */
+}
+
+.login-background-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* The Big Bang Flash */
+.warp-flash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.warp-flash.active {
+  animation: flashBang 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes flashBang {
+  0% { opacity: 0; }
+  10% { opacity: 1; } /* Blinding light */
+  100% { opacity: 0; } /* Fade to reveal network */
+}
+
+.login-card-wrapper {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  opacity: 0; 
+  transform: scale(0.8);
+}
+
+.login-card-wrapper.visible {
+  animation: cardReveal 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes cardReveal {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.auth-card.glass-card {
+  background: rgba(15, 23, 42, 0.6); /* Darker glass */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+[data-theme="light"] .auth-card.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  color: #0f172a;
+}
+
+.auth-card.glass-card h1,
+.auth-card.glass-card .subtitle,
+.auth-card.glass-card label,
+.auth-card.glass-card .help {
+  color: #ffffff;
+  transition: color 0.3s ease;
+}
+
+[data-theme="light"] .auth-card.glass-card h1,
+[data-theme="light"] .auth-card.glass-card label {
+  color: #0f172a;
+}
+
+[data-theme="light"] .auth-card.glass-card .subtitle,
+[data-theme="light"] .auth-card.glass-card .help {
+  color: #475569;
+}
+
+.auth-card.glass-card .subtitle {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.auth-card.glass-card .input {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+[data-theme="light"] .auth-card.glass-card .input {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.auth-card.glass-card .input:focus {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: #3b82f6;
+}
+
+[data-theme="light"] .auth-card.glass-card .input:focus {
+  background: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+
+.auth-card.glass-card .input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.auth-card.glass-card a {
+  color: #60a5fa;
+}
+
+.auth-card.glass-card a:hover {
+  color: #93c5fd;
+}
+
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Account Dropdown Styles */
+.input-group {
+  position: relative;
+}
+
+.dropdown-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 5px;
+  font-size: 12px;
+  transition: transform 0.2s, color 0.2s;
+  z-index: 5;
+}
+
+.dropdown-toggle:hover {
+  color: #3b82f6;
+}
+
+.dropdown-toggle.open {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.account-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 2px;
+  padding: 0;
+  list-style: none;
+}
+
+[data-theme='light'] .account-dropdown {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.account-item {
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: #e2e8f0;
+}
+
+[data-theme='light'] .account-item {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  color: #334155;
+}
+
+.account-item:last-child {
+  border-bottom: none;
+}
+
+.account-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='light'] .account-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.account-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.account-email {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.delete-account-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.account-item:hover .delete-account-btn {
+  opacity: 1;
+}
+
+.delete-account-btn:hover {
+  color: #ef4444;
+}
+
+.remember-me-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  user-select: none;
+}
+
+[data-theme='light'] .remember-me-checkbox {
+  color: #64748b;
+}
+
+.remember-me-checkbox input {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}

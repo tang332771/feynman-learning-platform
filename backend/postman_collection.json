@@ -1,0 +1,156 @@
+{
+  "info": {
+    "name": "Feynman Platform - API",
+    "_postman_id": "feynman-platform-collection",
+    "description": "Collection for registering, logging in and testing protected knowledge-points endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"P@ssw0rd123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/users/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "users",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"P@ssw0rd123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/users/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "users",
+            "login"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Save token to environment variable 'token' if login returns it",
+              "if (pm.response.code === 200) {",
+              "  try {",
+              "    const json = pm.response.json();",
+              "    if (json.token) {",
+              "      pm.environment.set('token', json.token);",
+              "      console.log('Saved token to environment variable `token`.');",
+              "    } else {",
+              "      console.log('No token in response');",
+              "    }",
+              "  } catch (e) {",
+              "    console.log('Response parse error', e);",
+              "  }",
+              "} else {",
+              "  console.log('Login returned status', pm.response.code);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "Create KnowledgePoint",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"测试知识点\",\n  \"content\": \"这是通过 Postman 创建的测试知识点。\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/knowledge-points",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "knowledge-points"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get My KnowledgePoints",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/knowledge-points",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "knowledge-points"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ]
+}

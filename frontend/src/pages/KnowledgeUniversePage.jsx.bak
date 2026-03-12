@@ -1,0 +1,483 @@
+import { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import {
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  forceX,
+  forceY,
+  forceZ,
+} from 'd3-force-3d';
+import apiClient from '../api/axios';
+
+function KnowledgeUniversePage() {
+  const mountRef = useRef(null);
+  const [knowledgePoints, setKnowledgePoints] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 1) 获取知识点数据
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchKnowledgePoints = async () => {
+      try {
+        const res = await apiClient.get('/knowledge-points');
+        if (!cancelled) setKnowledgePoints(res.data || []);
+      } catch (err) {
+        console.error('Failed to fetch knowledge points', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchKnowledgePoints();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 2) 当数据加载后，初始化 3D 场景
+  useEffect(() => {
+    const currentMount = mountRef.current;
+    if (!currentMount) return;
+
+    if (!knowledgePoints || knowledgePoints.length === 0) {
+      return;
+    }
+
+    // --- 力导向模拟数据（3D）---
+    // 让每个知识点在 3D 空间中受到“排斥力 + 中心力（+ 预留连接力）”的共同作用
+    const forceData = knowledgePoints.map((kp) => ({
+      id: kp._id,
+      // 初始分布别太散，否则排斥力几乎感觉不到
+      x: (Math.random() - 0.5) * 80,
+      y: (Math.random() - 0.5) * 80,
+      z: (Math.random() - 0.5) * 80,
+    }));
+
+    // --- Three.js 基础设置 ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a2a3a);
+
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      currentMount.clientWidth / currentMount.clientHeight,
+      0.1,
+      2000
+    );
+    camera.position.set(0, 0, 200);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
+    currentMount.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // 光照
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(100, 100, 100);
+    scene.add(pointLight);
+
+    // --- 核心：数据驱动创建对象 ---
+    const nodes = [];
+    const labelSprites = [];
+    const geometry = new THREE.SphereGeometry(5, 32, 32);
+    const worldScale = 3; // 放大力导向坐标到 Three.js 世界坐标，避免“挤成一团”
+    const sphereRadius = 5;
+    const sphereGap = 2;
+    const collideRadiusSim = (sphereRadius + sphereGap) / worldScale;
+
+    // --- 严格不重叠：球体最小间距解算（世界坐标）---
+    // 说明：d3 的 forceCollide 在多数情况能分离，但为“完全不重叠”提供硬约束兜底。
+    const minSphereDistance = (sphereRadius * 2) + sphereGap; // world units
+    const resolveSphereOverlaps = () => {
+      for (let i = 0; i < nodes.length; i += 1) {
+        const a = nodes[i];
+        if (!a) continue;
+        for (let j = i + 1; j < nodes.length; j += 1) {
+          const b = nodes[j];
+          if (!b) continue;
+
+          const dx = b.position.x - a.position.x;
+          const dy = b.position.y - a.position.y;
+          const dz = b.position.z - a.position.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+          // 若重叠/过近，则沿连线方向把两者推开
+          if (dist > 0 && dist < minSphereDistance) {
+            const push = (minSphereDistance - dist) / 2;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const nz = dz / dist;
+            a.position.x -= nx * push;
+            a.position.y -= ny * push;
+            a.position.z -= nz * push;
+            b.position.x += nx * push;
+            b.position.y += ny * push;
+            b.position.z += nz * push;
+          }
+
+          // dist === 0：完全重合，给一个极小扰动避免 NaN
+          if (dist === 0) {
+            const eps = 0.0001;
+            a.position.x -= eps;
+            b.position.x += eps;
+          }
+        }
+      }
+    };
+
+    // --- 严格不重叠：标签屏幕空间碰撞裁剪 ---
+    // 说明：标签是 Sprite，3D 空间不重叠也可能投影到屏幕上重叠。
+    // 策略：按距离相机由近到远排序；发生重叠的标签直接隐藏。
+    const tmpV = new THREE.Vector3();
+    const tmpRight = new THREE.Vector3();
+    const tmpUp = new THREE.Vector3();
+    const updateLabelVisibility = () => {
+      const width = currentMount.clientWidth;
+      const height = currentMount.clientHeight;
+
+      tmpRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+      tmpUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+
+      const items = labelSprites
+        .filter(Boolean)
+        .map((sprite) => {
+          sprite.getWorldPosition(tmpV);
+          const dist = tmpV.distanceTo(camera.position);
+          return { sprite, dist, worldPos: tmpV.clone() };
+        })
+        .sort((a, b) => a.dist - b.dist);
+
+      const accepted = [];
+      const rects = [];
+
+      for (const item of items) {
+        const { sprite, worldPos } = item;
+
+        // 计算屏幕像素 bbox（通过投影 scale.x/scale.y 的左右/上下端点）
+        const halfW = sprite.scale.x / 2;
+        const halfH = sprite.scale.y / 2;
+
+        const p = worldPos.clone();
+        const pR = worldPos.clone().add(tmpRight.clone().multiplyScalar(halfW));
+        const pL = worldPos.clone().add(tmpRight.clone().multiplyScalar(-halfW));
+        const pU = worldPos.clone().add(tmpUp.clone().multiplyScalar(halfH));
+        const pD = worldPos.clone().add(tmpUp.clone().multiplyScalar(-halfH));
+
+        const toScreen = (vec) => {
+          const ndc = vec.clone().project(camera);
+          return {
+            x: (ndc.x + 1) * 0.5 * width,
+            y: (1 - (ndc.y + 1) * 0.5) * height,
+            z: ndc.z,
+          };
+        };
+
+        const sP = toScreen(p);
+        const sR = toScreen(pR);
+        const sL = toScreen(pL);
+        const sU = toScreen(pU);
+        const sD = toScreen(pD);
+
+        // 若在裁剪空间之外，直接隐藏
+        if (sP.z < -1 || sP.z > 1) {
+          sprite.visible = false;
+          continue;
+        }
+
+        const wPx = Math.max(8, Math.abs(sR.x - sL.x));
+        const hPx = Math.max(8, Math.abs(sU.y - sD.y));
+        const rect = {
+          left: sP.x - wPx / 2,
+          right: sP.x + wPx / 2,
+          top: sP.y - hPx / 2,
+          bottom: sP.y + hPx / 2,
+        };
+
+        let overlaps = false;
+        for (const r of rects) {
+          const separated =
+            rect.right < r.left ||
+            rect.left > r.right ||
+            rect.bottom < r.top ||
+            rect.top > r.bottom;
+          if (!separated) {
+            overlaps = true;
+            break;
+          }
+        }
+
+        if (overlaps) {
+          sprite.visible = false;
+        } else {
+          sprite.visible = true;
+          accepted.push(sprite);
+          rects.push(rect);
+        }
+      }
+
+      // 兜底：未被 accepted 的一律隐藏，避免残留显示
+      for (const sprite of labelSprites) {
+        if (!sprite) continue;
+        if (!accepted.includes(sprite)) sprite.visible = false;
+      }
+    };
+
+    const createLabelSprite = (text) => {
+      const safeText = String(text || '').trim() || '未命名';
+      const displayText = safeText.length > 16 ? `${safeText.slice(0, 16)}...` : safeText;
+
+      const fontSize = 64;
+      const padding = 24;
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      ctx.font = `${fontSize}px sans-serif`;
+      const metrics = ctx.measureText(displayText);
+      const textWidth = Math.ceil(metrics.width);
+
+      canvas.width = textWidth + padding * 2;
+      canvas.height = fontSize + padding * 2;
+
+      // 重新设置 font（canvas resize 会清空 context 状态）
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.textBaseline = 'top';
+
+      // 背景
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 文字
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(displayText, padding, padding);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+
+      const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+      const sprite = new THREE.Sprite(material);
+
+      // 将像素尺寸映射到世界单位（经验值：0.08）
+      const scale = 0.08;
+      sprite.scale.set(canvas.width * scale, canvas.height * scale, 1);
+
+      // 便于卸载时释放资源
+      sprite.userData.__labelTexture = texture;
+
+      return sprite;
+    };
+
+    knowledgePoints.forEach((kp, i) => {
+      const material = new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff });
+      const sphere = new THREE.Mesh(geometry, material);
+
+      sphere.userData = {
+        id: kp._id,
+        title: kp.title,
+        content: kp.content,
+      };
+
+      const d = forceData[i];
+      sphere.position.set((d.x || 0) * worldScale, (d.y || 0) * worldScale, (d.z || 0) * worldScale);
+
+      // 标题标签（Sprite 会始终面向相机）
+      const label = createLabelSprite(kp.title);
+      if (label) {
+        // 避免所有标签都堆在球体正上方：按节点分散到周围（确定性，刷新不会跳）
+        const goldenAngle = 2.399963229728653; // ~137.5° in radians
+        const angle = (i + 1) * goldenAngle;
+        const r = 10;
+        const x = Math.cos(angle) * r;
+        const z = Math.sin(angle) * r;
+        const y = 8 + ((i % 3) - 1) * 3;
+
+        label.position.set(x, y, z);
+        sphere.add(label);
+        labelSprites.push(label);
+      }
+
+      scene.add(sphere);
+      nodes.push(sphere);
+    });
+
+    // --- 创建力模拟器（3D） ---
+    // 为了确保在不同浏览器/节流条件下都“动起来”，用手动 tick 驱动模拟。
+    const simulation = forceSimulation(forceData)
+      // 排斥力：让节点互相推开
+      .force(
+        'charge',
+        forceManyBody()
+          .strength(-280)
+          .distanceMax(400)
+      )
+      // 真实“拉向中心”的力：分别在 x/y/z 轴上拉回原点
+      .force('x', forceX(0).strength(0.004))
+      .force('y', forceY(0).strength(0.004))
+      .force('z', forceZ(0).strength(0.004))
+      // 碰撞：避免星球重叠（半径 5 + 留点间距；提高迭代次数让分离更彻底）
+      .force('collide', forceCollide(collideRadiusSim).iterations(4))
+      .force('link', forceLink([]).id((d) => d.id).distance(50));
+
+    // d3-force-3d 支持 3D 维度设置；若当前版本暴露该 API，则启用。
+    if (typeof simulation.numDimensions === 'function') {
+      simulation.numDimensions(3);
+    }
+
+    // 关闭内部计时器，改由我们在渲染循环里手动 tick
+    simulation.stop();
+    simulation.alpha(1).alphaTarget(0.06).alphaDecay(0.01).velocityDecay(0.28);
+
+    // --- 动画循环 ---
+    // --- 交互：Raycaster 拾取 ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let selectedNode = null;
+
+    const onMouseClick = (event) => {
+      if (!renderer.domElement) return;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      // 转换为标准化设备坐标（NDC）[-1, 1]
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(nodes, false);
+
+      if (intersects.length > 0) {
+        const clickedObject = intersects[0].object;
+
+        // 恢复旧选中
+        if (selectedNode && selectedNode.material && selectedNode.userData?.originalColor != null) {
+          selectedNode.material.color.setHex(selectedNode.userData.originalColor);
+        }
+
+        // 高亮新选中
+        selectedNode = clickedObject;
+        if (selectedNode?.material?.color) {
+          if (selectedNode.userData?.originalColor == null) {
+            selectedNode.userData.originalColor = selectedNode.material.color.getHex();
+          }
+          selectedNode.material.color.setHex(0xff0000);
+        }
+
+        const title = clickedObject?.userData?.title || '未命名';
+        // 教学版：直接弹窗展示信息
+        // 后续可替换为侧边栏/浮层展示更多字段
+        alert(`你点击了: ${title}`);
+      } else {
+        // 点击空白区域，取消选中
+        if (selectedNode && selectedNode.material && selectedNode.userData?.originalColor != null) {
+          selectedNode.material.color.setHex(selectedNode.userData.originalColor);
+        }
+        selectedNode = null;
+      }
+    };
+    renderer.domElement.addEventListener('click', onMouseClick);
+
+    let rafId = 0;
+    const animate = () => {
+      rafId = requestAnimationFrame(animate);
+
+      // 更新力模拟，并把位置同步到 Three.js 球体
+      // 每帧多 tick 几次，让效果更明显、更快收敛
+      for (let k = 0; k < 3; k += 1) simulation.tick();
+      forceData.forEach((d, i) => {
+        const nodeMesh = nodes[i];
+        if (!nodeMesh) return;
+
+        // d3 模拟过程中，个别节点可能出现 undefined/NaN；此时不要把它们“吸回原点”
+        const nextX = Number.isFinite(d.x) ? d.x * worldScale : nodeMesh.position.x;
+        const nextY = Number.isFinite(d.y) ? d.y * worldScale : nodeMesh.position.y;
+        const nextZ = Number.isFinite(d.z) ? d.z * worldScale : nodeMesh.position.z;
+        nodeMesh.position.set(nextX, nextY, nextZ);
+      });
+
+      // 硬约束：确保球体绝不相交
+      resolveSphereOverlaps();
+
+      // 硬约束：确保标签屏幕空间不重叠（重叠者自动隐藏）
+      updateLabelVisibility();
+
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    // resize
+    const handleResize = () => {
+      if (!mountRef.current) return;
+      camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+    };
+    window.addEventListener('resize', handleResize);
+
+    // cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (rafId) cancelAnimationFrame(rafId);
+
+      if (renderer?.domElement) {
+        renderer.domElement.removeEventListener('click', onMouseClick);
+      }
+
+      simulation.stop();
+
+      controls.dispose();
+      geometry.dispose();
+      nodes.forEach((mesh) => {
+        if (mesh && mesh.material && typeof mesh.material.dispose === 'function') {
+          mesh.material.dispose();
+        }
+      });
+
+      labelSprites.forEach((sprite) => {
+        const texture = sprite && sprite.userData ? sprite.userData.__labelTexture : null;
+        if (texture && typeof texture.dispose === 'function') texture.dispose();
+        if (sprite && sprite.material && typeof sprite.material.dispose === 'function') {
+          sprite.material.dispose();
+        }
+      });
+      renderer.dispose();
+
+      if (renderer.domElement && currentMount.contains(renderer.domElement)) {
+        currentMount.removeChild(renderer.domElement);
+      }
+    };
+  }, [knowledgePoints]);
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">知识宇宙</h1>
+          <p className="page-subtitle">数据驱动的 3D 星球视图：拖拽旋转、点击拾取、自动布局。</p>
+        </div>
+      </div>
+
+      {loading && <div className="alert">正在加载知识点并构建知识宇宙...</div>}
+      {!loading && knowledgePoints.length === 0 && (
+        <div className="card">
+          <p style={{ marginBottom: 0 }}>暂无知识点，先去创建几个知识点吧。</p>
+        </div>
+      )}
+
+      <div className="card" style={{ padding: 0, overflow: 'hidden', marginTop: '1rem' }}>
+        <div ref={mountRef} style={{ width: '100%', height: '80vh' }} />
+      </div>
+    </div>
+  );
+}
+
+export default KnowledgeUniversePage;

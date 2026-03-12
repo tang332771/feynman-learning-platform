@@ -1,0 +1,107 @@
+.universe-container {
+  position: relative;
+  width: 100%;
+  height: 80vh;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #000;
+}
+
+.universe-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* 让鼠标事件穿透到 Canvas */
+  z-index: 10;
+}
+
+.universe-controls {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  pointer-events: auto;
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 0.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.universe-search {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  outline: none;
+  min-width: 200px;
+}
+
+.universe-search::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.universe-search:focus {
+  border-color: var(--primary-light);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.universe-detail-card {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 300px;
+  background: rgba(15, 23, 42, 0.9); /* 深色背景 */
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  color: white;
+  pointer-events: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.detail-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: var(--primary-light);
+}
+
+.detail-content {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  z-index: 20;
+  font-size: 1.2rem;
+}
